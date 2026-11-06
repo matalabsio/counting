@@ -684,9 +684,9 @@ export function AdminConsole() {
                         ).length;
                         return (
                           <details
-                            key={`cons-${cons}-${consScope}-${filter}-${search}`}
+                            key={`cons-${cons}-${consScope}-${filter}-${search}-${cons === openCons || consScope === cons ? "open" : "shut"}`}
                             className="admin-cons-drop"
-                            defaultOpen={cons === openCons || consScope === cons}
+                            open={cons === openCons || consScope === cons || undefined}
                           >
                             <summary>
                               <span className="drop-title">{cons}</span>
@@ -704,9 +704,9 @@ export function AdminConsole() {
                                 const pending = rows.length - started;
                                 return (
                                   <details
-                                    key={`m-${cons}-${m}-${consScope}-${mandalScope}-${filter}`}
+                                    key={`m-${cons}-${m}-${consScope}-${mandalScope}-${filter}-${m === openMandal || mandalScope === m ? "open" : "shut"}`}
                                     className="admin-mandal-drop"
-                                    defaultOpen={m === openMandal || mandalScope === m}
+                                    open={m === openMandal || mandalScope === m || undefined}
                                   >
                                     <summary>
                                       <span className="drop-title">{m}</span>
