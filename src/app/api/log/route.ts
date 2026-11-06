@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasCountingApiUpstream, proxyCountingApi } from "@/lib/api-proxy";
+import { ADMIN_COOKIE, hasAdminSession, isSameOriginMutation } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,17 +13,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!isSameOriginMutation(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   if (hasCountingApiUpstream()) return proxyCountingApi(req, "/api/log");
 
-  const { addLog, assertCountingWriteAuth } = await import("@/lib/db");
-
-  const auth = assertCountingWriteAuth(
-    req.headers.get("authorization"),
-    req.nextUrl.searchParams.get("token")
-  );
-  if (!auth) {
+  if (!(await hasAdminSession(req.cookies.get(ADMIN_COOKIE)?.value))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const { addLog } = await import("@/lib/db");
 
   let body: { seat?: string; action?: string; by?: string };
   try {

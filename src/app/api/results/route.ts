@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasCountingApiUpstream, proxyCountingApi } from "@/lib/api-proxy";
 import { BY_ID, type CountingResult } from "@/lib/roster";
+import { ADMIN_COOKIE, hasAdminSession, isSameOriginMutation } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,33 +10,28 @@ export async function GET(req: NextRequest) {
   if (hasCountingApiUpstream()) return proxyCountingApi(req, "/api/results");
 
   const {
-    countingWriteToken,
     listResults,
   } = await import("@/lib/db");
 
   return NextResponse.json({
     results: listResults(),
-    writeRequired: Boolean(countingWriteToken()),
+    writeRequired: true,
   });
 }
 
 export async function POST(req: NextRequest) {
+  if (!isSameOriginMutation(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   if (hasCountingApiUpstream()) return proxyCountingApi(req, "/api/results");
 
+  if (!(await hasAdminSession(req.cookies.get(ADMIN_COOKIE)?.value))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const {
-    assertCountingWriteAuth,
     deleteResult,
     getResult,
     upsertResult,
   } = await import("@/lib/db");
-
-  const auth = assertCountingWriteAuth(
-    req.headers.get("authorization"),
-    req.nextUrl.searchParams.get("token")
-  );
-  if (!auth) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   let body: {
     seatId?: string;

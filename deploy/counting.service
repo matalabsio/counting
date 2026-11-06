@@ -1,0 +1,22 @@
+[Unit]
+Description=Counting Day Next.js server
+After=network.target
+
+[Service]
+Type=simple
+User=counting
+Group=counting
+WorkingDirectory=/opt/counting
+EnvironmentFile=/etc/counting.env
+ExecStart=/usr/bin/node /opt/counting/node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/counting /opt/counting/.next
+
+[Install]
+WantedBy=multi-user.target
