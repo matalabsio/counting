@@ -1,5 +1,9 @@
 # Counting Day — Admin & Operator Guide
 
+> Admin login now requires the fixed username and password supplied by the
+> project owner. The existing **Lock** button signs out. Any password-token
+> unlock steps below describe the old flow; see [ADMIN-AUTH.md](./ADMIN-AUTH.md).
+
 Parvathipuram Manyam · ZPTC and MPTC · **7 Nov 2026**
 
 This guide is for the person entering results on counting day. Give this file to your hall admin / desk operator.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-/** When set (Vercel frontend), /api/* proxies to the Render app that holds SQLite. */
+/** When set, API requests proxy to the server that holds SQLite. */
 export function countingApiUpstream(): string | null {
   const raw = process.env.COUNTING_API_UPSTREAM?.trim();
   if (!raw) return null;
@@ -13,7 +13,7 @@ export function hasCountingApiUpstream(): boolean {
 
 export async function proxyCountingApi(
   req: NextRequest,
-  apiPath: "/api/results" | "/api/log"
+  apiPath: "/api/results" | "/api/log" | "/api/auth"
 ): Promise<NextResponse> {
   const base = countingApiUpstream();
   if (!base) {
@@ -22,6 +22,10 @@ export async function proxyCountingApi(
 
   const url = new URL(apiPath + req.nextUrl.search, base);
   const headers = new Headers();
+  const session = req.cookies.get("counting_admin_session")?.value;
+  if (session && /^[a-f0-9]{64}$/.test(session)) {
+    headers.set("cookie", `counting_admin_session=${session}`);
+  }
   const auth = req.headers.get("authorization");
   if (auth) headers.set("authorization", auth);
   const contentType = req.headers.get("content-type");
@@ -31,6 +35,8 @@ export async function proxyCountingApi(
     method: req.method,
     headers,
     cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(15000),
   };
 
   if (req.method !== "GET" && req.method !== "HEAD") {
@@ -42,5 +48,9 @@ export async function proxyCountingApi(
   const out = new NextResponse(body, { status: upstream.status });
   const ct = upstream.headers.get("content-type");
   if (ct) out.headers.set("content-type", ct);
+  out.headers.set("cache-control", "no-store");
+  const retryAfter = upstream.headers.get("retry-after");
+  if (retryAfter) out.headers.set("retry-after", retryAfter);
+  for (const cookie of upstream.headers.getSetCookie()) out.headers.append("set-cookie", cookie);
   return out;
 }

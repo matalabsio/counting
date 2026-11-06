@@ -1,5 +1,11 @@
 # Counting Day — API & data
 
+> Authentication update: POST `/api/results` and `/api/log` now require the
+> `HttpOnly` session cookie from POST `/api/auth` (JSON username/password).
+> GET `/api/auth` checks the session; DELETE `/api/auth` revokes it. Bearer and
+> URL write tokens no longer grant access, including in development. Public
+> GET routes are unchanged. The token section below is historical.
+
 Public board: `/` · polls every **2s** · Admin: `/admin` · writers use `COUNTING_WRITE_TOKEN`
 
 ## Auth (write token)

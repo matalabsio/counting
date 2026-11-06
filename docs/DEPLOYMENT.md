@@ -1,5 +1,9 @@
 # Counting Day — Deployment
 
+> New deployments: follow [EC2-DEPLOYMENT.md](./EC2-DEPLOYMENT.md). Admin access
+> now uses server-verified sessions; the write-token instructions below are
+> historical. See [ADMIN-AUTH.md](./ADMIN-AUTH.md).
+
 **Recommended production shape**
 
 | Piece | Host | Role |

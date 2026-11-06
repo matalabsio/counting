@@ -80,12 +80,12 @@ function matchesSearch(seat: CountingSeat, q: string, results: Record<string, Co
   return hay.includes(q);
 }
 
-export function AdminConsole() {
+export function AdminConsole({ authenticated = false }: { authenticated?: boolean }) {
   const [results, setResults] = useState<Record<string, CountingResult>>({});
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [live, setLive] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [writeRequired, setWriteRequired] = useState(false);
+  const [writeRequired, setWriteRequired] = useState(authenticated);
   const [token, setToken] = useState<string | null>(null);
   const [operator, setOperator] = useState("admin");
   const [filter, setFilter] = useState<SeatFilter>("all");
@@ -98,7 +98,7 @@ export function AdminConsole() {
   const [toolMsg, setToolMsg] = useState("");
   const [clearArmed, setClearArmed] = useState(false);
 
-  const canWrite = !writeRequired || Boolean(token);
+  const canWrite = authenticated || !writeRequired || Boolean(token);
 
   useEffect(() => {
     try {
@@ -504,7 +504,17 @@ export function AdminConsole() {
               <button
                 type="button"
                 className="btn"
-                onClick={() => {
+                onClick={async () => {
+                  if (authenticated) {
+                    try {
+                      const res = await fetch("/api/auth", { method: "DELETE" });
+                      if (!res.ok) throw new Error("logout");
+                      window.location.replace("/admin");
+                    } catch {
+                      setErr("Unable to lock admin. Check your connection and try again.");
+                    }
+                    return;
+                  }
                   try {
                     sessionStorage.removeItem(TOKEN_KEY);
                   } catch {
