@@ -1,132 +1,126 @@
-# Counting Day — Deployment (Render)
+# Counting Day — Deployment
 
-Live app = **one Next.js service** on Render with a **persistent disk** for SQLite.  
-Do **not** deploy this app to Vercel alone — the vote database will not survive.
+**Recommended production shape**
 
-Repo: [https://github.com/matalabsio/counting](https://github.com/matalabsio/counting)
+| Piece | Host | Role |
+| --- | --- | --- |
+| **Frontend + domain** | **Vercel** | Public `/` and Admin `/admin` UI |
+| **API + SQLite** | **Render** + persistent disk | Saves votes; source of truth |
+
+Vercel alone cannot keep SQLite. The Vercel app proxies `/api/*` to Render when `COUNTING_API_UPSTREAM` is set.
 
 ```text
-Public /  +  Admin /admin  →  Render Web Service  →  /var/data/counting.db
+Users → counting.yourdomain.com (Vercel UI)
+              │
+              │  /api/results, /api/log  (proxied)
+              ▼
+         Render Web Service + disk → /var/data/counting.db
 ```
+
+Repo: [https://github.com/matalabsio/counting](https://github.com/matalabsio/counting)
 
 ---
 
 ## 1. Push code
 
 ```bash
-git push -u origin main
+git push origin main
 ```
 
-Remote should be `https://github.com/matalabsio/counting.git`.
-
-Secrets stay local (never commit):
-
-- `.env.local`
-- `data/counting.db*`
+Never commit: `.env.local`, `data/counting.db*`.
 
 ---
 
-## 2. Create the Render service
+## 2. Deploy API + DB on Render (first)
 
-### Option A — Blueprint (recommended)
+### Blueprint
 
-1. Open [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
-2. Connect **matalabsio/counting**
-3. Apply [render.yaml](../render.yaml)
-4. When prompted, set **`COUNTING_WRITE_TOKEN`** to a strong production password (not the sample)
-5. Deploy
+1. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
+2. Connect **matalabsio/counting** → apply [render.yaml](../render.yaml)
+3. Set **`COUNTING_WRITE_TOKEN`** to a strong production password
+4. Deploy → note the URL, e.g. `https://counting-day.onrender.com`
 
-### Option B — Manual Web Service
-
-1. **New** → **Web Service** → repo `matalabsio/counting`
-2. Settings:
+### Manual (same settings)
 
 | Field | Value |
 | --- | --- |
-| Runtime | Node |
-| Build command | `npm install && npm run build` |
-| Start command | `npm start` |
-| Instance | **Starter** or higher for counting day (avoid free sleep) |
+| Build | `npm install && npm run build` |
+| Start | `npm start` |
+| Disk mount | `/var/data` (1 GB) |
+| `COUNTING_DB_PATH` | `/var/data/counting.db` |
+| `COUNTING_WRITE_TOKEN` | production admin password |
+| `NODE_VERSION` | `20` |
+| Plan | **Starter+** for counting day (avoid free sleep) |
 
-3. **Disk**
+### Verify Render
 
-| Field | Value |
-| --- | --- |
-| Name | `counting-data` |
-| Mount path | `/var/data` |
-| Size | 1 GB |
+```bash
+curl -s https://counting-day.onrender.com/api/results
+# writeRequired: true
 
-4. **Environment**
+curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+  https://counting-day.onrender.com/api/results \
+  -H "Content-Type: application/json" \
+  -d '{"seatId":"zptc","delete":true}'
+# 401 without password
+```
+
+---
+
+## 3. Deploy frontend on Vercel
+
+1. [vercel.com](https://vercel.com) → **Add New Project** → import **matalabsio/counting**
+2. Framework: **Next.js** (default)
+3. **Environment variables** (Production + Preview if you want):
 
 | Key | Value |
 | --- | --- |
-| `NODE_VERSION` | `20` |
-| `NODE_ENV` | `production` |
-| `COUNTING_DB_PATH` | `/var/data/counting.db` |
-| `COUNTING_WRITE_TOKEN` | *your production admin password* |
+| `COUNTING_API_UPSTREAM` | `https://counting-day.onrender.com` (your Render URL, no trailing slash) |
 
-5. Deploy and wait until the service is **Live**
+4. Do **not** set `COUNTING_DB_PATH` or a local SQLite path on Vercel  
+5. Deploy
 
----
+The UI stays on Vercel; browser calls `/api/...` on the same domain; Vercel route handlers **proxy** to Render.
 
-## 3. Verify
+### Custom domain on Vercel
 
-| URL | Expect |
-| --- | --- |
-| `https://<service>.onrender.com/` | Public Viewer / MPTC |
-| `https://<service>.onrender.com/admin` | Unlock form |
-| Unlock with production password | Seat control + KPIs |
-| Save one seat | Public `/` updates within ~2s |
-
-```bash
-curl -s https://<service>.onrender.com/api/results | head
-# writeRequired should be true
-
-curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<service>.onrender.com/api/results \
-  -H "Content-Type: application/json" \
-  -d '{"seatId":"zptc","delete":true}'
-# expect 401 without password
-
-curl -s -X POST https://<service>.onrender.com/api/results \
-  -H "Authorization: Bearer YOUR_PRODUCTION_PASSWORD" \
-  -H "Content-Type: application/json" \
-  -d '{"seatId":"zptc","force":true,"result":{"status":"counting","ours":1,"rivals":[],"updatedBy":"deploy-check"}}'
-# expect {"ok":true,...}
-```
-
----
-
-## 4. Custom domain (optional)
-
-1. Render → your service → **Settings** → **Custom Domains** → add e.g. `counting.yourdomain.com`
-2. DNS: **CNAME** `counting` → `<service>.onrender.com` (as shown in the dashboard)
-3. Wait for TLS to become **Certificate Issued**
-4. Give hall staff:
+1. Project → **Settings** → **Domains** → add `counting.yourdomain.com`
+2. Add the DNS records Vercel shows (usually CNAME / A)
+3. Give the hall:
    - Public: `https://counting.yourdomain.com/`
    - Admin: `https://counting.yourdomain.com/admin`
 
 ---
 
-## 5. Counting-day ops
+## 4. End-to-end check
 
-1. Set a strong `COUNTING_WRITE_TOKEN` before the day; share only with desks that enter votes  
-2. Prefer a **non-free** Render plan so the service does not sleep mid-count  
-3. Give operators [ADMIN-GUIDE.md](./ADMIN-GUIDE.md)  
-4. Open public board on display screens; keep `/admin` on desk laptops only  
-5. After the day: **Lock** admin browsers; optionally rotate the password  
+1. Open Vercel domain `/` — public board loads  
+2. Open `/admin` — unlock with the **same** password as Render `COUNTING_WRITE_TOKEN`  
+3. Save a seat → public board updates within ~2s  
+4. Confirm data survives Render restart (disk)
 
 ---
 
-## 6. Local vs production
+## 5. Env cheat sheet
 
-| | Local | Production (Render) |
+| Variable | Render | Vercel |
 | --- | --- | --- |
-| Password | `.env.local` → `COUNTING_WRITE_TOKEN` | Render env → `COUNTING_WRITE_TOKEN` |
-| Database | `data/counting.db` | `/var/data/counting.db` on disk |
-| Public | `http://127.0.0.1:3000/` | `https://<host>/` |
-| Admin | `http://127.0.0.1:3000/admin` | `https://<host>/admin` |
+| `COUNTING_WRITE_TOKEN` | Required (real password) | Not required (auth checked on Render) |
+| `COUNTING_DB_PATH` | `/var/data/counting.db` | unset |
+| `COUNTING_API_UPSTREAM` | unset | `https://<render-service>.onrender.com` |
+| `NODE_ENV` | `production` | set by Vercel |
 
-Default sample password in docs/local: `admincounting123` — **change it on Render**.
+Local dev: leave `COUNTING_API_UPSTREAM` unset; use `.env.local` + `data/counting.db`.
+
+---
+
+## 6. Admin (hall operators)
+
+See [ADMIN-GUIDE.md](./ADMIN-GUIDE.md).
+
+- Unlock `/admin` with the production password  
+- Set **Operator** name  
+- Save seats → live public board  
 
 ---
 
@@ -134,10 +128,10 @@ Default sample password in docs/local: `admincounting123` — **change it on Ren
 
 | Issue | Fix |
 | --- | --- |
-| Saves lost after redeploy | Disk missing or wrong `COUNTING_DB_PATH` |
-| 401 on every save | Wrong / unset `COUNTING_WRITE_TOKEN` |
-| Site sleeps / slow first load | Free tier spun down — upgrade plan for counting day |
-| Build fails on `better-sqlite3` | Ensure Node 20 native build on Linux (Render default OK) |
-| Health check fails | Confirm `npm start` and `/` returns 200 |
+| Vercel `/api` 500 / SQLite errors | Set `COUNTING_API_UPSTREAM` to the Render URL |
+| Saves work on Render URL but not Vercel domain | Upstream env missing/wrong; redeploy Vercel |
+| 401 on admin save | Password must match Render `COUNTING_WRITE_TOKEN` |
+| Data lost after Render redeploy | Disk not mounted or wrong `COUNTING_DB_PATH` |
+| Cold / sleeping API | Render free tier slept — use Starter+ on counting day |
 
-More API detail: [API.md](./API.md)
+API reference: [API.md](./API.md)

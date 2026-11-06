@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  assertCountingWriteAuth,
-  countingWriteToken,
-  deleteResult,
-  getResult,
-  listResults,
-  upsertResult,
-} from "@/lib/db";
+import { hasCountingApiUpstream, proxyCountingApi } from "@/lib/api-proxy";
 import { BY_ID, type CountingResult } from "@/lib/roster";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export function GET() {
+export async function GET(req: NextRequest) {
+  if (hasCountingApiUpstream()) return proxyCountingApi(req, "/api/results");
+
+  const {
+    countingWriteToken,
+    listResults,
+  } = await import("@/lib/db");
+
   return NextResponse.json({
     results: listResults(),
     writeRequired: Boolean(countingWriteToken()),
@@ -19,6 +20,15 @@ export function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (hasCountingApiUpstream()) return proxyCountingApi(req, "/api/results");
+
+  const {
+    assertCountingWriteAuth,
+    deleteResult,
+    getResult,
+    upsertResult,
+  } = await import("@/lib/db");
+
   const auth = assertCountingWriteAuth(
     req.headers.get("authorization"),
     req.nextUrl.searchParams.get("token")

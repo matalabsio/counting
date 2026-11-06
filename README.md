@@ -34,20 +34,21 @@ Unlock: open `/admin` and enter the password, or `/admin?token=admincounting123`
 
 Set your **Operator** name in the top bar after unlock. Restart `npm run dev` after editing `.env.local`.
 
-Needs a **writable** disk on counting day (ephemeral hosts lose the DB).
+Production: **frontend on Vercel** (custom domain) + **API/DB on Render** (persistent disk). See deploy guide.
 
 ## Flow
 
 ```text
-/admin (token) → POST /api/results → counting.db → / polls every 2s
+Vercel UI (/ and /admin) → /api/* proxy → Render SQLite → live poll ~2s
 ```
 
 ## Guides
 
-- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — GitHub → Render deploy, disk, env, custom domain
-- **[docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md)** — give this to the hall admin / operator (UI, password, how to enter results)
-- [docs/API.md](docs/API.md) — API reference for developers
-- [render.yaml](render.yaml) — Render Blueprint (Web Service + `/var/data` disk)
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — Vercel frontend + Render API/disk + domain
+- **[docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md)** — give this to the hall admin / operator
+- [docs/API.md](docs/API.md) — API reference
+- [render.yaml](render.yaml) — Render Blueprint (API + `/var/data` disk)
+- [vercel.json](vercel.json) — Vercel project marker
 
 | Method | Path | Auth |
 | --- | --- | --- |

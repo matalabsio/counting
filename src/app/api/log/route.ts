@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addLog, assertCountingWriteAuth, listLogs } from "@/lib/db";
+import { hasCountingApiUpstream, proxyCountingApi } from "@/lib/api-proxy";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export function GET() {
+export async function GET(req: NextRequest) {
+  if (hasCountingApiUpstream()) return proxyCountingApi(req, "/api/log");
+
+  const { listLogs } = await import("@/lib/db");
   return NextResponse.json({ logs: listLogs(40) });
 }
 
 export async function POST(req: NextRequest) {
+  if (hasCountingApiUpstream()) return proxyCountingApi(req, "/api/log");
+
+  const { addLog, assertCountingWriteAuth } = await import("@/lib/db");
+
   const auth = assertCountingWriteAuth(
     req.headers.get("authorization"),
     req.nextUrl.searchParams.get("token")

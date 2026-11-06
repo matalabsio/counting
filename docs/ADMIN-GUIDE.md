@@ -181,7 +181,7 @@ Use **before** counting day for practice. Do **not** leave sample data live on t
 
 - Env: `COUNTING_WRITE_TOKEN` = admin password; optional `COUNTING_DB_PATH` for SQLite file  
 - Data lives in SQLite (`data/counting.db` by default) — needs a **writable disk** in production  
-- Deploy: [DEPLOYMENT.md](./DEPLOYMENT.md) (Render + persistent disk)  
+- Deploy: [DEPLOYMENT.md](./DEPLOYMENT.md) (Vercel UI + Render API/disk)  
 - APIs: `GET/POST /api/results`, `GET/POST /api/log` (POST needs password)  
 - Full API notes: [API.md](./API.md)  
 - App README: [../README.md](../README.md)  
