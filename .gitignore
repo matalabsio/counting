@@ -19,6 +19,9 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 
+# local design / tooling
+.taste-skill/
+
 # logs / OS
 *.log
 .DS_Store

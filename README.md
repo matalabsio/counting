@@ -1,38 +1,69 @@
 # Counting Day — Parvathipuram Manyam
 
-Standalone Next.js app for live ZPTC / MPTC counting. Separate from the Constituency Explorer / ZP dashboard.
+Standalone Next.js app for live ZPTC / MPTC counting.
 
-## Run
+## Complete setup
 
 ```bash
 npm install
-cp .env.example .env.local   # set COUNTING_WRITE_TOKEN for production
+cp .env.example .env.local   # already has COUNTING_WRITE_TOKEN sample
 npm run dev
 ```
 
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000).
+| URL | Who | What |
+| --- | --- | --- |
+| [http://127.0.0.1:3000](http://127.0.0.1:3000) | Public | Live Viewer / MPTC board (polls every 2s) |
+| [http://127.0.0.1:3000/admin](http://127.0.0.1:3000/admin) | Officials | Manual counting console |
 
-- **Viewer / MPTC** — public live board (polls every 2s)
-- **Counter** — unlock with `?token=YOUR_TOKEN` (or unlock form)
-- Empty seats show **○ Yet to count** until saved
+### Admin password
 
-## Env
+Public `/` has **no Counter** — Viewer / MPTC only. All writes go through `/admin`.
 
 | Variable | Purpose |
 | --- | --- |
-| `COUNTING_WRITE_TOKEN` | Bearer / `?token=` for Counter writes (required in production) |
-| `COUNTING_DB_PATH` | SQLite path (default `data/counting.db`) |
+| `COUNTING_WRITE_TOKEN` | Admin password for `/admin` and `POST /api/*` |
+| `COUNTING_DB_PATH` | Optional SQLite path (default `data/counting.db`) |
+
+Default password:
+
+```text
+admincounting123
+```
+
+Unlock: open `/admin` and enter the password, or `/admin?token=admincounting123` once.
+
+Set your **Operator** name in the top bar after unlock. Restart `npm run dev` after editing `.env.local`.
 
 Needs a **writable** disk on counting day (ephemeral hosts lose the DB).
 
-## API
+## Flow
 
-See [docs/API.md](docs/API.md).
+```text
+/admin (token) → POST /api/results → counting.db → / polls every 2s
+```
 
-| Method | Path |
-| --- | --- |
-| GET/POST | `/api/results` |
-| GET/POST | `/api/log` |
+## Guides
+
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — GitHub → Render deploy, disk, env, custom domain
+- **[docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md)** — give this to the hall admin / operator (UI, password, how to enter results)
+- [docs/API.md](docs/API.md) — API reference for developers
+- [render.yaml](render.yaml) — Render Blueprint (Web Service + `/var/data` disk)
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| GET | `/api/results` | Public |
+| POST | `/api/results` | Bearer token or `?token=` |
+| GET | `/api/log` | Public |
+| POST | `/api/log` | Bearer token or `?token=` |
+
+Example write:
+
+```bash
+curl -X POST http://127.0.0.1:3000/api/results \
+  -H "Authorization: Bearer admincounting123" \
+  -H "Content-Type: application/json" \
+  -d '{"seatId":"zptc","force":true,"result":{"status":"counting","ours":100,"rivals":[{"name":"Rival","party":"YSRCP","votes":80}],"updatedBy":"desk-1"}}'
+```
 
 ## Stack
 

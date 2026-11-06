@@ -1,39 +1,39 @@
 # Counting Day — API & data
 
-Live board: `/` · Viewer polls every **2s** · Counter writes with token · empty seats = **○ Yet to count**
+Public board: `/` · polls every **2s** · Admin: `/admin` · writers use `COUNTING_WRITE_TOKEN`
 
-## Required
+## Auth (write token)
 
-| Need | How |
-| --- | --- |
-| App | `npm install && npm run dev` |
-| SQLite | Auto-created at `data/counting.db` (or `COUNTING_DB_PATH`) |
-| Write token | `COUNTING_WRITE_TOKEN` in `.env.local` (required in production) |
+There are no external API keys. Writers authenticate with the env secret:
 
 ```bash
-COUNTING_WRITE_TOKEN=your-secret
+COUNTING_WRITE_TOKEN=admincounting123
 ```
 
-- **GET** — public  
-- **POST** — `Authorization: Bearer <token>` or `?token=`  
-- Local without token: writes allowed. Production without token: `401`.
+Send it as:
 
-## Gov data → UI
+- `Authorization: Bearer <token>`, or  
+- `?token=<token>` on the URL
+
+| Environment | Behaviour |
+| --- | --- |
+| Dev, token unset | Writes allowed (open) |
+| Dev/prod, token set | Writes need the token (`writeRequired: true` on GET `/api/results`) |
+| Production, token unset | Writes return `401` |
+
+## Data flow
 
 ```text
-Counting hall → Counter or POST script → counting.db → / (poll 2s)
+Counting hall → /admin (or POST script) → counting.db → / (poll 2s)
 ```
-
-| Feed | How |
-| --- | --- |
-| Counter | `/?token=…` → enter seat → Save |
-| CSV / sheet | Map to `seatId` → `POST /api/results` |
 
 ## APIs
 
 ### `GET /api/results`
 
-`{ "results": { "zptc": { … } }, "writeRequired": true }`
+```json
+{ "results": { "zptc": { "…" } }, "writeRequired": true }
+```
 
 ### `POST /api/results` (writers)
 
@@ -48,7 +48,8 @@ Counting hall → Counter or POST script → counting.db → / (poll 2s)
     "rivals": [{ "name": "R", "party": "YSRCP", "votes": 80 }],
     "nota": null,
     "note": "",
-    "sample": false
+    "sample": false,
+    "updatedBy": "hall-desk-1"
   }
 }
 ```
@@ -68,8 +69,9 @@ Log GET returns newest 40. POST body: `{ "seat", "action", "by" }` (writers).
 
 ## Checklist
 
-1. `/` loads  
-2. `GET /api/results` and `GET /api/log` OK  
-3. Production token set  
-4. Unlock Counter, save seat → Viewer updates ~2s  
-5. `data/counting.db` persists after restart  
+1. Copy `.env.example` → `.env.local`, restart `npm run dev`  
+2. `/` loads Viewer / MPTC only  
+3. `/admin` shows Unlock when token is set; unlock with token  
+4. Save a seat on `/admin` → public `/` Live pill updates within ~2s  
+5. Unauthorized POST without token returns `401`  
+6. `data/counting.db` persists after restart  

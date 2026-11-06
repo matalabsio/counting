@@ -1,0 +1,29 @@
+# Counting Day — Render Blueprint
+# Dashboard: New → Blueprint → connect github.com/matalabsio/counting
+# Or create a Web Service manually and match these settings.
+#
+# Persistent disk keeps SQLite across deploys. Free instances may sleep after idle;
+# for counting day use a paid plan that stays up.
+
+services:
+  - type: web
+    name: counting-day
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    disk:
+      name: counting-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: COUNTING_DB_PATH
+        value: /var/data/counting.db
+      - key: COUNTING_WRITE_TOKEN
+        sync: false
